@@ -47,8 +47,14 @@ export default function AdminDashboard() {
 
   // MILITARY-GRADE SECURITY: Immediate redirect for any non-admin
   useEffect(() => {
-    if (!authLoading && (!user || user.email !== ADMIN_EMAIL)) {
-      router.replace("/dashboard");
+    if (!authLoading) {
+      if (!user) {
+        // Not logged in at all — send to admin login portal
+        router.replace("/admin/login");
+      } else if (user.email !== ADMIN_EMAIL) {
+        // Logged in as wrong user — bounce to their dashboard
+        router.replace("/dashboard");
+      }
     }
   }, [user, authLoading, router]);
 
