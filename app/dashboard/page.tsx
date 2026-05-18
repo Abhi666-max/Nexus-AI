@@ -59,6 +59,21 @@ function calcAvgResponseTime(conversations: Conversation[]): string {
   return avg > 0 ? `${(1.2 / Math.max(1, avg * 0.1)).toFixed(1)}s` : "N/A";
 }
 
+function calcTokensAndSavings(conversations: Conversation[]): { tokens: string; saved: string } {
+  // 1 token ≈ 4 chars. Groq Llama is ~$0.000002/token.
+  // Human agent cost est at $15/hr, ~30s per message = $0.125 per message.
+  const totalChars = conversations.reduce((acc, c) =>
+    acc + (c.messages || []).reduce((a, m) => a + (m.content?.length || 0), 0), 0
+  );
+  const tokens = Math.round(totalChars / 4);
+  const totalMessages = conversations.reduce((acc, c) => acc + (c.messages?.length || 0), 0);
+  const humanCostSaved = totalMessages * 0.125; // $0.125 per message handled by AI
+  return {
+    tokens: tokens > 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toString(),
+    saved: `$${humanCostSaved.toFixed(0)}`
+  };
+}
+
 
 type SidebarKey = "dashboard" | "conversations" | "customers" | "agents" | "settings";
 
@@ -129,11 +144,12 @@ export default function DashboardPage() {
   }, [user]);
 
   // Derived Dynamic Data
+  const tokenData = calcTokensAndSavings(conversations);
   const dynamicMetrics = [
     { title: "Total Interactions", value: stats.total.toString(), change: "+0%", isPositive: true, icon: MessageSquare },
     { title: "Resolution Rate", value: stats.resRate, change: "+0%", isPositive: true, icon: CheckCircle2 },
     { title: "Avg Response Time", value: stats.avgTime, change: "-0.1s", isPositive: true, icon: Zap },
-    { title: "Active Agents", value: "24/7", change: "100%", isPositive: true, icon: Activity },
+    { title: "Human Cost Saved", value: tokenData.saved, change: `${tokenData.tokens} tokens`, isPositive: true, icon: Activity },
   ];
   
   const dynamicLiveFeed = conversations.slice(0, 5).map(c => ({

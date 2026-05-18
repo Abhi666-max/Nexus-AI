@@ -69,6 +69,16 @@ export default function ConversationsTab() {
     }
   };
 
+  const handleHandback = async () => {
+    if (!activeConv || !activeConv.id) return;
+    try {
+      await updateConversation(activeConv.id, { status: "active" });
+      toast.success("Handed back to AI", { description: "Nexus AI has resumed autonomous control of this conversation." });
+    } catch (err) {
+      toast.error("Failed to handback");
+    }
+  };
+
   const handleDelete = async () => {
     if (!activeConv || !activeConv.id) return;
     if (confirm("Are you sure you want to permanently delete this conversation?")) {
@@ -137,9 +147,15 @@ export default function ConversationsTab() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={handleDelete} className="text-[12px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors border border-red-500/10">Delete</button>
-                <button onClick={handleTakeover} disabled={activeConv.status === "escalated"} className="text-[12px] font-medium text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors border border-white/10 disabled:opacity-50">
-                  {activeConv.status === "escalated" ? "Taken Over" : "Takeover"}
-                </button>
+                {activeConv.status === "escalated" ? (
+                  <button onClick={handleHandback} className="text-[12px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors border border-emerald-500/20 flex items-center gap-1.5">
+                    <Bot size={12} /> Resolve & Handback
+                  </button>
+                ) : (
+                  <button onClick={handleTakeover} className="text-[12px] font-medium text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors border border-white/10">
+                    Takeover
+                  </button>
+                )}
               </div>
             </div>
             
