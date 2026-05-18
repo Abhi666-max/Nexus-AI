@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { initializeApp, getApps } from "firebase/app";
 
 const DEFAULT_SYSTEM_PROMPT = `You are Nexus, an elite AI customer intelligence agent deployed by an enterprise SaaS platform. You are concise, deeply professional, empathetic, and solution-focused. Keep responses under 3 sentences unless detail is explicitly needed. Always steer conversations toward resolution and product value.`;
@@ -51,6 +51,18 @@ export async function POST(req: NextRequest) {
 
     // Fetch the user's custom system prompt from Firestore (or use default)
     const systemPrompt = userId ? await fetchUserSystemPrompt(userId) : DEFAULT_SYSTEM_PROMPT;
+    
+    // Check if the conversation is escalated
+    if (userId && body.customerId) {
+      const db = getServerFirestore();
+      const q = query(collection(db, "conversations"), where("userId", "==", userId), where("customerId", "==", body.customerId));
+      const snap = await getDocs(q);
+      if (!snap.empty && snap.docs[0].data().status === "escalated") {
+        console.log("[Chat API] Conversation is escalated. Skipping AI response.");
+        return NextResponse.json({ message: "", escalated: true });
+      }
+    }
+
     console.log(`[Chat API] Using ${userId ? "custom" : "default"} system prompt. Sending ${messages.length} messages to Groq...`);
 
     const groq = new Groq({ apiKey });

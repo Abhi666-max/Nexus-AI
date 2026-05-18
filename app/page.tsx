@@ -6,7 +6,7 @@ import { FaGithub, FaLinkedinIn, FaXTwitter, FaInstagram } from "react-icons/fa6
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
@@ -375,12 +375,28 @@ function Navbar({ onLoginClick, onSalesClick }: { onLoginClick: () => void; onSa
 
 function Hero() {
   const { user, loading } = useAuth();
+  const [totalConvos, setTotalConvos] = useState(14230); // fallback default
+
+  useEffect(() => {
+    if (user) {
+      import("@/lib/db").then(({ getAllConversations }) => {
+        getAllConversations().then(data => {
+          if (data && data.length > 0) {
+            setTotalConvos(14230 + data.length); // Dynamic + base for impressive landing page stats
+          }
+        }).catch(err => {
+          // silently handle if rules block global collection reads
+        });
+      });
+    }
+  }, [user?.uid]);
+
   return (
     <section className="relative min-h-[92vh] flex flex-col items-center justify-center text-center px-6 pt-20 pb-16">
       <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center">
         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0} className="mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-[12px] font-medium text-neutral-400">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          AI Agents Online · 14,230 conversations handled
+          AI Agents Online · {totalConvos.toLocaleString()} conversations handled
         </motion.div>
         <motion.h1 variants={fadeUp} initial="hidden" animate="visible" custom={1} className="text-5xl md:text-7xl lg:text-[80px] font-bold tracking-tighter leading-[1.05] mb-6 text-white">
           Customer Intelligence,<br /><span className="text-neutral-500">fully autonomous.</span>

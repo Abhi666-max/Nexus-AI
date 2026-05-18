@@ -4,8 +4,10 @@ import { Search, Bot, User, Clock, CheckCircle2, AlertCircle } from "lucide-reac
 import { motion } from "framer-motion";
 
 import { useAuth } from "@/lib/AuthContext";
-import { getConversations, Conversation } from "@/lib/db";
+import { getConversations, Conversation, updateConversation, deleteConversation } from "@/lib/db";
 import { toast } from "sonner";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function ConversationsTab() {
   const { user } = useAuth();
@@ -17,19 +19,23 @@ export default function ConversationsTab() {
 
   useEffect(() => {
     if (!user) return;
-    const fetchConvos = async () => {
-      try {
-        const data = await getConversations(user.uid);
-        setConversations(data);
-        if (data.length > 0) setActiveId(data[0].id || null);
-      } catch (err: any) {
-        console.error("Failed to load conversations:", err);
-        toast.error("Failed to load conversations");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchConvos();
+    const q = query(collection(db, "conversations"), where("userId", "==", user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Conversation[];
+      data.sort((a, b) => {
+        const timeA = a.updatedAt?.toMillis?.() || 0;
+        const timeB = b.updatedAt?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
+      setConversations(data);
+      if (data.length > 0 && !activeId) setActiveId(data[0].id || null);
+      setLoading(false);
+    }, (err) => {
+      console.error("Failed to load conversations:", err);
+      toast.error("Failed to load conversations");
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, [user]);
 
   const filtered = conversations.filter(c =>
@@ -39,21 +45,41 @@ export default function ConversationsTab() {
 
   const activeConv = conversations.find(c => c.id === activeId);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activeConv) return;
+    if (!newMessage.trim() || !activeConv || !activeConv.id) return;
     
-    setConversations(prev => prev.map(conv => {
-      if (conv.id === activeConv.id) {
-        return {
-          ...conv,
-          messages: [...conv.messages, { role: "assistant", content: newMessage, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }],
-          preview: newMessage
-        };
-      }
-      return conv;
-    }));
+    const msg = { role: "assistant" as const, content: newMessage, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isHuman: activeConv.status === "escalated" };
+    const newMessages = [...activeConv.messages, msg];
     setNewMessage("");
+    try {
+      await updateConversation(activeConv.id, { messages: newMessages, preview: msg.content, status: activeConv.status });
+    } catch (err) {
+      toast.error("Failed to send message");
+    }
+  };
+
+  const handleTakeover = async () => {
+    if (!activeConv || !activeConv.id) return;
+    try {
+      await updateConversation(activeConv.id, { status: "escalated" });
+      toast.success("Conversation Escalated", { description: "AI has been paused. You are now in control." });
+    } catch (err) {
+      toast.error("Failed to takeover");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!activeConv || !activeConv.id) return;
+    if (confirm("Are you sure you want to permanently delete this conversation?")) {
+      try {
+        await deleteConversation(activeConv.id);
+        toast.success("Conversation deleted");
+        setActiveId(null);
+      } catch (err) {
+        toast.error("Failed to delete conversation");
+      }
+    }
   };
 
   return (
@@ -109,7 +135,12 @@ export default function ConversationsTab() {
                   <p className="text-[11px] text-neutral-500">{activeConv.id?.slice(0,8)}</p>
                 </div>
               </div>
-              <button className="text-[12px] font-medium text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors border border-white/10">Takeover</button>
+              <div className="flex items-center gap-2">
+                <button onClick={handleDelete} className="text-[12px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors border border-red-500/10">Delete</button>
+                <button onClick={handleTakeover} disabled={activeConv.status === "escalated"} className="text-[12px] font-medium text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors border border-white/10 disabled:opacity-50">
+                  {activeConv.status === "escalated" ? "Taken Over" : "Takeover"}
+                </button>
+              </div>
             </div>
             
             {/* Messages */}
@@ -118,14 +149,14 @@ export default function ConversationsTab() {
                  const isUser = msg.role === "user";
                  return (
                    <div key={i} className={`flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
-                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? "bg-white/10 text-white" : "bg-white text-black"}`}>
-                       {isUser ? <User size={14} /> : <Bot size={14} />}
+                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? "bg-white/10 text-white" : msg.isHuman ? "bg-blue-500 text-white" : "bg-white text-black"}`}>
+                       {isUser ? <User size={14} /> : msg.isHuman ? <User size={14} /> : <Bot size={14} />}
                      </div>
                      <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-                       <div className={`max-w-md px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${isUser ? "rounded-tr-sm bg-[#1a1a1a] border border-white/10 text-white" : "rounded-tl-sm bg-[#111] border border-white/8 text-neutral-200"}`}>
+                       <div className={`max-w-md px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${isUser ? "rounded-tr-sm bg-[#1a1a1a] border border-white/10 text-white" : msg.isHuman ? "rounded-tl-sm bg-blue-600/20 border border-blue-500/30 text-white" : "rounded-tl-sm bg-[#111] border border-white/8 text-neutral-200"}`}>
                          {msg.content}
                        </div>
-                       <span className="text-[10px] text-neutral-500 mt-1.5 px-1">{msg.time}</span>
+                       <span className="text-[10px] text-neutral-500 mt-1.5 px-1">{msg.time} {msg.isHuman && "· You"}</span>
                      </div>
                    </div>
                  );
@@ -137,7 +168,7 @@ export default function ConversationsTab() {
               <input 
                 value={newMessage} 
                 onChange={(e) => setNewMessage(e.target.value)} 
-                placeholder="Type your message..." 
+                placeholder={activeConv.status === "escalated" ? "Reply to customer as Human Agent..." : "Type your message..."} 
                 className="flex-1 bg-white/5 border border-white/10 text-white text-[13px] rounded-xl px-4 py-2.5 outline-none focus:border-white/25 placeholder-neutral-600 transition-colors"
               />
               <button type="submit" disabled={!newMessage.trim()} className="bg-white text-black px-4 py-2.5 rounded-xl text-[13px] font-semibold hover:bg-neutral-200 transition-colors disabled:opacity-50">Send</button>

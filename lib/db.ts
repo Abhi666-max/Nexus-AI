@@ -20,6 +20,7 @@ export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   time: string;
+  isHuman?: boolean;
 }
 
 export interface Conversation {
@@ -136,6 +137,10 @@ export const updateConversation = async (id: string, data: Partial<Omit<Conversa
     ...data,
     updatedAt: serverTimestamp(),
   });
+};
+
+export const deleteConversation = async (id: string) => {
+  await deleteDoc(doc(db, "conversations", id));
 };
 
 // --- Users (Settings) ---

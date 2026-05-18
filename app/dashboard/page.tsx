@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3, Users, MessageSquare, Activity, ArrowUpRight,
   CheckCircle2, Clock, AlertCircle, Bell, LogOut, Zap,
-  Settings, Search, ChevronRight, X, User
+  Settings, ChevronRight, X, User
 } from "lucide-react";
 import Link from "next/link";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -232,40 +232,6 @@ export default function DashboardPage() {
               <div className="fixed inset-0 z-40" onClick={() => { setBellOpen(false); setProfileOpen(false); }} />
             )}
             
-            {/* Animated Search */}
-            <div className="flex items-center">
-              <AnimatePresence>
-                {searchOpen && (
-                  <motion.div
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: 200, opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    className="overflow-hidden mr-2"
-                  >
-                    <input
-                      ref={searchRef}
-                      type="text"
-                      placeholder="Search..."
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[13px] text-white outline-none focus:border-white/20 placeholder-neutral-600"
-                      onBlur={() => setSearchOpen(false)}
-                      onKeyDown={(e) => {
-                         if (e.key === "Enter") {
-                           toast("Search functionality is in beta.");
-                           setSearchOpen(false);
-                         }
-                      }}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <button
-                onClick={() => setSearchOpen(!searchOpen)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                <Search size={17} />
-              </button>
-            </div>
-
             {/* Notifications Dropdown */}
             <div className="relative">
               <button
@@ -273,7 +239,12 @@ export default function DashboardPage() {
                 className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:text-white hover:bg-white/5 transition-colors relative"
               >
                 <Bell size={17} />
-                <span className="absolute top-1.5 right-2 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                {conversations.filter(c => c.status === "escalated").length > 0 && (
+                  <span className="absolute top-1.5 right-2 flex h-2 w-2 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                )}
               </button>
               <AnimatePresence>
                 {bellOpen && (
@@ -288,19 +259,24 @@ export default function DashboardPage() {
                        <span className="text-[10px] text-neutral-500 cursor-pointer hover:text-white">Mark all read</span>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
-                      {[
-                        { title: "New agent deployed successfully", time: "10m ago", icon: Zap, color: "text-emerald-400" },
-                        { title: "High volume alert on pricing page", time: "1h ago", icon: AlertCircle, color: "text-amber-400" },
-                        { title: "Weekly report generated", time: "2h ago", icon: BarChart3, color: "text-blue-400" },
-                      ].map((n, i) => (
-                        <div key={i} className="px-4 py-3 hover:bg-white/5 transition-colors cursor-pointer flex gap-3 border-b border-white/5 last:border-0">
-                          <div className={`mt-0.5 shrink-0 ${n.color}`}><n.icon size={14} /></div>
-                          <div>
-                            <p className="text-[12px] text-white font-medium mb-0.5">{n.title}</p>
-                            <p className="text-[10px] text-neutral-500">{n.time}</p>
+                      {conversations.filter(c => c.status === "escalated").length > 0 ? (
+                        conversations.filter(c => c.status === "escalated").map((c, i) => (
+                          <div key={i} className="px-4 py-3 hover:bg-white/5 transition-colors cursor-pointer flex gap-3 border-b border-white/5 last:border-0"
+                            onClick={() => {
+                              setActiveView("conversations");
+                              setBellOpen(false);
+                            }}
+                          >
+                            <div className="mt-0.5 shrink-0 text-amber-400"><AlertCircle size={14} /></div>
+                            <div>
+                              <p className="text-[12px] text-white font-medium mb-0.5">{c.user} needs help</p>
+                              <p className="text-[10px] text-neutral-500">Escalated</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <div className="px-4 py-6 text-center text-[12px] text-neutral-500">No unread notifications</div>
+                      )}
                     </div>
                   </motion.div>
                 )}

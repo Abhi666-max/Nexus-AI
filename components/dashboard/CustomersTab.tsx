@@ -55,6 +55,12 @@ export default function CustomersTab() {
     loadCustomers();
   }, [user]);
 
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(q.toLowerCase()) ||
+    c.email.toLowerCase().includes(q.toLowerCase()) ||
+    c.status.toLowerCase().includes(q.toLowerCase())
+  );
+
   const openAdd = () => {
     setEditingId(null);
     setFormData({ name: "", email: "", status: "active", ltv: "" });
@@ -132,19 +138,27 @@ export default function CustomersTab() {
       });
       const data = await res.json();
       
-      const aiTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const aiMsg = { role: "assistant" as const, content: data.message || "Error", time: aiTime };
-      const finalMsgs = [...newMsgs, aiMsg];
-      setChatMessages(finalMsgs);
-      
-      // UPSERT: Append to existing thread or create new one — no duplicate docs
-      if (chatCustomer.id) {
-        upsertConversation(
-          user.uid,
-          chatCustomer.id,
-          chatCustomer.name,
-          [userMsg, aiMsg]  // Only append the NEW messages, not the full history
-        ).catch(err => console.error("[upsert]", err));
+      if (data.escalated) {
+        // UPSERT: Append only user message
+        if (chatCustomer.id) {
+          upsertConversation(user.uid, chatCustomer.id, chatCustomer.name, [userMsg])
+            .catch(err => console.error("[upsert]", err));
+        }
+      } else {
+        const aiTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const aiMsg = { role: "assistant" as const, content: data.message || "Error", time: aiTime };
+        const finalMsgs = [...newMsgs, aiMsg];
+        setChatMessages(finalMsgs);
+        
+        // UPSERT: Append to existing thread or create new one — no duplicate docs
+        if (chatCustomer.id) {
+          upsertConversation(
+            user.uid,
+            chatCustomer.id,
+            chatCustomer.name,
+            [userMsg, aiMsg]  // Only append the NEW messages, not the full history
+          ).catch(err => console.error("[upsert]", err));
+        }
       }
       
     } catch (err) {
@@ -159,10 +173,32 @@ export default function CustomersTab() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, chatLoading]);
 
-  const openChat = (c: Customer) => {
+  const openChat = async (c: Customer) => {
     setChatCustomer(c);
     setChatMessages([]);
     setIsChatOpen(true);
+    setChatLoading(true);
+    
+    try {
+      const { collection, query, where, getDocs } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase");
+      const q = query(collection(db, "conversations"), where("userId", "==", user!.uid), where("customerId", "==", c.id));
+      const snap = await getDocs(q);
+      
+      if (!snap.empty && snap.docs[0].data().messages?.length > 0) {
+        setChatMessages(snap.docs[0].data().messages);
+      } else {
+        setChatMessages([{ 
+          role: "assistant", 
+          content: "Hi, I'm Nexus. How can I help you today?", 
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+        }]);
+      }
+    } catch (err) {
+      console.error("Failed to load history", err);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   const filtered = customers.filter(c => 
@@ -206,14 +242,14 @@ export default function CustomersTab() {
                   <td className="px-6 py-4 text-right"><div className="w-16 h-6 bg-white/10 rounded ml-auto"/></td>
                 </tr>
               ))
-            ) : filtered.length === 0 ? (
+            ) : filteredCustomers.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-12 text-center text-neutral-500 text-[13px]">
                   No customers found. Click 'Add Customer' to get started.
                 </td>
               </tr>
             ) : (
-              filtered.map((c) => (
+              filteredCustomers.map((c) => (
                 <tr key={c.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
                   <td className="px-6 py-4">
                     <p className="font-medium text-white">{c.name}</p>
