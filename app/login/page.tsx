@@ -139,18 +139,6 @@ export default function LoginPage() {
           </svg>
           Continue with Google
         </button>
-
-        {/* Founder Access — Admin Portal */}
-        <div className="mt-6 pt-5 border-t border-white/8 text-center">
-          <button
-            type="button"
-            onClick={() => router.push("/admin/login")}
-            className="inline-flex items-center gap-2 text-[12px] font-medium text-neutral-500 hover:text-white transition-all duration-200 group"
-          >
-            <span className="w-4 h-4 rounded border border-white/10 bg-white/5 flex items-center justify-center text-[9px] group-hover:border-white/30 group-hover:bg-white/10 transition-all">⬡</span>
-            Founder Access
-          </button>
-        </div>
       </motion.div>
     </div>
   );

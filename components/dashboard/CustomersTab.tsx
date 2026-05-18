@@ -28,7 +28,12 @@ export default function CustomersTab() {
   const [chatCustomer, setChatCustomer] = useState<Customer | null>(null);
   
   // Form State
-  const [formData, setFormData] = useState({ name: "", email: "", status: "active", ltv: "" });
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    status: "active" | "churned" | "trial" | undefined;
+    ltv: string;
+  }>({ name: "", email: "", status: "active", ltv: "" });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -296,7 +301,7 @@ export default function CustomersTab() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[12px] font-medium text-neutral-400 mb-1.5 block">Status</label>
-                    <select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})} className="w-full bg-white/5 border border-white/8 text-[13px] text-white rounded-xl px-4 py-3 outline-none focus:border-white/20 appearance-none">
+                    <select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value as "active" | "churned" | "trial"})} className="w-full bg-white/5 border border-white/8 text-[13px] text-white rounded-xl px-4 py-3 outline-none focus:border-white/20 appearance-none">
                       <option value="active" className="bg-[#111]">Active</option>
                       <option value="trial" className="bg-[#111]">Trial</option>
                       <option value="churned" className="bg-[#111]">Churned</option>

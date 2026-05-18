@@ -340,9 +340,91 @@ function AuthModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ─── Founder Modal (Stealth Easter Egg) ─────────────────── */
+function FounderModal({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] as any }}
+        className="w-full max-w-sm bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative flex flex-col items-center text-center overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Aesthetic top ambient glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-gradient-to-b from-purple-500/10 to-transparent blur-xl pointer-events-none" />
+
+        {/* Close Button */}
+        <button onClick={onClose} className="absolute top-5 right-5 text-neutral-500 hover:text-white transition-colors">
+          <X size={18} />
+        </button>
+
+        {/* High-fidelity avatar container */}
+        <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-purple-500/30 via-emerald-500/20 to-blue-500/30 mb-5 flex items-center justify-center shadow-lg shadow-purple-950/20">
+          <div className="w-full h-full rounded-full bg-black/90 flex items-center justify-center overflow-hidden border border-white/10">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 6C13.66 6 15 7.34 15 9C15 10.66 13.66 12 12 12C10.34 12 9 10.66 9 9C9 7.34 10.34 6 12 6ZM12 20.2C9.3 20.2 6.9 18.8 5.5 16.7C5.54 14.54 9.9 13.4 12 13.4C14.08 13.4 18.44 14.54 18.5 16.7C17.1 18.8 14.7 20.2 12 20.2Z" fill="white" opacity="0.8" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card info */}
+        <h2 className="text-xl font-bold tracking-tight text-white mb-1">Abhijeet Kangane</h2>
+        <p className="text-[12px] font-semibold text-neutral-400 uppercase tracking-wider mb-4">Founder & Lead Engineer, Nexus AI</p>
+        
+        <p className="text-[13px] text-neutral-400 leading-relaxed max-w-[280px] mb-6">
+          Building autonomous customer intelligence to scale the next generation of enterprise support.
+        </p>
+
+        {/* Social Icons styled beautifully */}
+        <div className="flex items-center gap-3 justify-center mb-4">
+          {socials.map(({ icon: Icon, href, label }) => (
+            <motion.a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={label}
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-neutral-400 bg-white/5 border border-white/8 hover:text-white hover:border-white/20 hover:bg-white/10 transition-colors"
+              whileHover={{ scale: 1.1, y: -1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Icon size={18} />
+            </motion.a>
+          ))}
+        </div>
+
+        {/* THE EASTER EGG: Secret Button */}
+        <div className="mt-4 pt-5 border-t border-white/5 w-full flex justify-center">
+          <button
+            onClick={() => {
+              onClose();
+              router.push("/admin/login");
+            }}
+            className="text-[10px] font-semibold text-neutral-600 hover:text-neutral-300 transition-colors duration-200 uppercase tracking-widest flex items-center gap-1.5"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-600 animate-pulse" />
+            Command Center Access
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+
 
 /* ─── Navbar ─────────────────────────────────────────────── */
-function Navbar({ onLoginClick, onSalesClick }: { onLoginClick: () => void; onSalesClick: () => void }) {
+function Navbar({ onLoginClick, onSalesClick, onFounderClick }: { onLoginClick: () => void; onSalesClick: () => void; onFounderClick: () => void }) {
   const scroll = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   const { user, loading } = useAuth();
 
@@ -360,9 +442,13 @@ function Navbar({ onLoginClick, onSalesClick }: { onLoginClick: () => void; onSa
             // Skeleton — prevents flicker during auth resolution
             <div className="w-28 h-8 rounded-full bg-white/10 animate-pulse" />
           ) : user ? (
-            <Link href="/dashboard" className="inline-flex items-center justify-center bg-white text-black text-[13px] font-semibold px-4 h-8 rounded-full hover:bg-neutral-200 transition-colors">Dashboard</Link>
+            <div className="flex items-center gap-5">
+              <button onClick={onFounderClick} className="text-[13px] font-medium text-neutral-400 hover:text-white transition-colors">Founder</button>
+              <Link href="/dashboard" className="inline-flex items-center justify-center bg-white text-black text-[13px] font-semibold px-4 h-8 rounded-full hover:bg-neutral-200 transition-colors">Dashboard</Link>
+            </div>
           ) : (
             <>
+              <button onClick={onFounderClick} className="text-[13px] font-medium text-neutral-400 hover:text-white transition-colors">Founder</button>
               <button onClick={onLoginClick} className="hidden md:inline-flex text-[13px] font-medium text-neutral-400 hover:text-white transition-colors">Log in</button>
               <Link href="/login" className="inline-flex items-center justify-center bg-white text-black text-[13px] font-semibold px-4 h-8 rounded-full hover:bg-neutral-200 transition-colors">Start Building</Link>
             </>
@@ -599,14 +685,20 @@ function Footer() {
 export default function HomePage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
+  const [founderOpen, setFounderOpen] = useState(false);
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] selection:bg-white selection:text-black font-sans">
       <AnimatePresence>
         {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
         {salesOpen && <SalesModal onClose={() => setSalesOpen(false)} />}
+        {founderOpen && <FounderModal onClose={() => setFounderOpen(false)} />}
       </AnimatePresence>
-      <Navbar onLoginClick={() => setShowAuthModal(true)} onSalesClick={() => setSalesOpen(true)} />
+      <Navbar
+        onLoginClick={() => setShowAuthModal(true)}
+        onSalesClick={() => setSalesOpen(true)}
+        onFounderClick={() => setFounderOpen(true)}
+      />
       <Hero />
       <FeaturesGrid />
       <Pricing onSalesClick={() => setSalesOpen(true)} />

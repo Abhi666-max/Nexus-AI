@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { ShieldAlert } from "lucide-react";
 
@@ -10,8 +10,11 @@ const ADMIN_EMAIL = "abhi.admin.dev@gmail.com";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
+    if (pathname === "/admin/login") return;
+
     if (!loading) {
       if (!user) {
         router.replace("/login");
@@ -19,7 +22,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.replace("/dashboard");
       }
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
+
+  // Whitelist /admin/login from any loading checks or redirect states
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (

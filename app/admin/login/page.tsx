@@ -91,6 +91,8 @@ export default function AdminLogin() {
     }
   };
 
+  // Only show loading spinner for the very first auth resolution
+  // Do NOT return null for authenticated users — the useEffect redirect handles routing
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#060303] flex items-center justify-center">
@@ -99,7 +101,8 @@ export default function AdminLogin() {
     );
   }
 
-  // Don't render the form for already-authenticated users (they'll be redirected)
+  // Authenticated users are handled by the useEffect redirect above
+  // Render null briefly while redirect fires (avoids flash of form)
   if (user) return null;
 
   return (

@@ -70,9 +70,9 @@ export async function POST(req: NextRequest) {
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system" as const, content: systemPrompt },
         ...messages.map((m: any) => ({
-          role: m.role === "user" ? "user" : "assistant",
+          role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
           content: m.content,
         })),
       ],
