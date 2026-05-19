@@ -6,16 +6,6 @@ Nexus AI is a production-ready, multi-tenant SaaS platform that transforms custo
 
 ---
 
-## Screenshots
-
-| Dashboard | Chat Simulator | Admin Command Center |
-|---|---|---|
-| ![Dashboard](./docs/screenshots/dashboard.png) | ![Chat](./docs/screenshots/chat.png) | ![Admin](./docs/screenshots/admin.png) |
-
-> *To add screenshots: run the app locally, capture the views, and place them in `docs/screenshots/`.*
-
----
-
 ## Key Features
 
 ### 🤖 Autonomous AI Agents
