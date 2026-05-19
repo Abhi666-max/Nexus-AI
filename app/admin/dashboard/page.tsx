@@ -39,6 +39,7 @@ interface SalesLead {
   companyName: string;
   supportVolume: string;
   contacted?: boolean;
+  workspaceStatus?: string;
 }
 
 export default function AdminDashboard() {
@@ -163,11 +164,17 @@ export default function AdminDashboard() {
     toast.success("Invoice generated and emailed to lead.", { icon: "💳" });
   };
 
-  const simulateActivation = async () => {
+  const handleActivateWorkspace = async (leadId: string) => {
     toast.loading("Provisioning Enterprise Workspace...");
-    await new Promise(r => setTimeout(r, 1000));
-    toast.dismiss();
-    toast.success("Workspace activated.", { icon: "🚀" });
+    try {
+      await updateDoc(doc(db, "sales_leads", leadId), { workspaceStatus: "activated" });
+      setSalesLeads(prev => prev.map(l => l.id === leadId ? { ...l, workspaceStatus: "activated" } : l));
+      toast.dismiss();
+      toast.success("Workspace activated.", { icon: "🚀" });
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error("Activation failed", { description: err.message });
+    }
   };
 
   if (authLoading || loading) {
@@ -427,13 +434,22 @@ export default function AdminDashboard() {
                             <DollarSign size={11} />
                             Send Stripe Invoice
                           </button>
-                          <button
-                            onClick={simulateActivation}
-                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 px-3 py-1.5 rounded-lg transition-all"
-                          >
-                            <Zap size={11} />
-                            Activate Workspace
-                          </button>
+                          {l.workspaceStatus === "activated" ? (
+                            <button
+                              disabled
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-500/50 bg-emerald-500/5 border border-emerald-500/10 px-3 py-1.5 rounded-lg cursor-not-allowed"
+                            >
+                              ✓ Activated
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleActivateWorkspace(l.id)}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 px-3 py-1.5 rounded-lg transition-all"
+                            >
+                              <Zap size={11} />
+                              Activate Workspace
+                            </button>
+                          )}
                           <button
                             onClick={() => handleMarkContacted(l.id)}
                             disabled={l.contacted}
