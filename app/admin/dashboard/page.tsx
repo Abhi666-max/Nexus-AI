@@ -177,6 +177,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteLead = async (leadId: string) => {
+    if (!window.confirm("Are you sure you want to delete this lead?")) return;
+    try {
+      await deleteDoc(doc(db, "sales_leads", leadId));
+      setSalesLeads(prev => prev.filter(l => l.id !== leadId));
+      toast.success("Lead deleted successfully");
+    } catch (err: any) {
+      toast.error("Failed to delete lead", { description: err.message });
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-[#060303] flex flex-col items-center justify-center gap-4">
@@ -457,6 +468,13 @@ export default function AdminDashboard() {
                           >
                             {l.contacted ? <CheckCircle2 size={11} className="text-emerald-500" /> : <Clock size={11} />}
                             {l.contacted ? "Contacted" : "Mark Contacted"}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLead(l.id)}
+                            className="inline-flex items-center justify-center text-[11px] font-semibold text-red-500/60 hover:text-red-400 bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 hover:border-red-500/20 p-2 rounded-lg transition-all"
+                            title="Delete Lead"
+                          >
+                            <Trash2 size={12} />
                           </button>
                         </td>
                       </motion.tr>
