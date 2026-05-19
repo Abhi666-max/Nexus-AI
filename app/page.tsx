@@ -430,14 +430,16 @@ function Navbar({ onLoginClick, onSalesClick, onFounderClick }: { onLoginClick: 
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/60 border-b border-white/5 flex justify-center px-4">
-      <div className="flex items-center justify-between px-2 h-16 w-full max-w-6xl">
-        <Link href="/" className="flex items-center gap-2.5"><NexusLogo /><span className="text-[15px] font-bold tracking-tight text-white">Nexus</span></Link>
-        <nav className="hidden md:flex items-center gap-10">
+      <div className="flex items-center relative h-16 w-full max-w-6xl">
+        <div className="flex-1 flex justify-start">
+          <Link href="/" className="flex items-center gap-2.5"><NexusLogo /><span className="text-[15px] font-bold tracking-tight text-white">Nexus</span></Link>
+        </div>
+        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-10">
           <button onClick={() => scroll("features")} className="text-[13px] font-medium text-neutral-400 hover:text-white transition-colors">Features</button>
           <button onClick={() => scroll("pricing")} className="text-[13px] font-medium text-neutral-400 hover:text-white transition-colors">Pricing</button>
           <button onClick={onSalesClick} className="text-[13px] font-medium text-neutral-400 hover:text-white transition-colors">Enterprise</button>
         </nav>
-        <div className="flex items-center gap-5">
+        <div className="flex-1 flex justify-end items-center gap-5">
           {loading ? (
             // Skeleton — prevents flicker during auth resolution
             <div className="w-28 h-8 rounded-full bg-white/10 animate-pulse" />
@@ -464,18 +466,16 @@ function Hero() {
   const [totalConvos, setTotalConvos] = useState(14230); // fallback default
 
   useEffect(() => {
-    if (user) {
-      import("@/lib/db").then(({ getAllConversations }) => {
-        getAllConversations().then(data => {
-          if (data && data.length > 0) {
-            setTotalConvos(14230 + data.length); // Dynamic + base for impressive landing page stats
-          }
-        }).catch(err => {
-          // silently handle if rules block global collection reads
-        });
+    import("@/lib/db").then(({ getAllConversations }) => {
+      getAllConversations().then(data => {
+        if (data && data.length > 0) {
+          setTotalConvos(14230 + data.length); // Dynamic + base for impressive landing page stats
+        }
+      }).catch(err => {
+        // silently handle if rules block global collection reads
       });
-    }
-  }, [user?.uid]);
+    });
+  }, []);
 
   return (
     <section className="relative min-h-[92vh] flex flex-col items-center justify-center text-center px-6 pt-20 pb-16">

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3, Users, MessageSquare, Activity, ArrowUpRight,
   CheckCircle2, Clock, AlertCircle, Bell, LogOut, Zap,
-  Settings, ChevronRight, X, User
+  Settings, ChevronRight, X, User, Code
 } from "lucide-react";
 import Link from "next/link";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -19,6 +19,7 @@ import CustomersTab from "@/components/dashboard/CustomersTab";
 import AgentsTab from "@/components/dashboard/AgentsTab";
 import SettingsTab from "@/components/dashboard/SettingsTab";
 import ConversationsTab from "@/components/dashboard/ConversationsTab";
+import IntegrationTab from "@/components/dashboard/IntegrationTab";
 import { useAuth } from "@/lib/AuthContext";
 import { getConversations, Conversation } from "@/lib/db";
 
@@ -75,13 +76,14 @@ function calcTokensAndSavings(conversations: Conversation[]): { tokens: string; 
 }
 
 
-type SidebarKey = "dashboard" | "conversations" | "customers" | "agents" | "settings";
+type SidebarKey = "dashboard" | "conversations" | "customers" | "agents" | "integration" | "settings";
 
 const sidebarItems: { key: SidebarKey; label: string; icon: any; section?: string }[] = [
   { key: "dashboard", label: "Dashboard", icon: BarChart3, section: "Overview" },
   { key: "conversations", label: "Conversations", icon: MessageSquare },
   { key: "customers", label: "Customers", icon: Users },
   { key: "agents", label: "AI Agents", icon: Zap, section: "Configuration" },
+  { key: "integration", label: "Integration", icon: Code },
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -90,6 +92,7 @@ const viewContent: Record<SidebarKey, { title: string; description: string }> = 
   conversations: { title: "Conversations", description: "All active and past AI-handled conversations" },
   customers: { title: "Customer Directory", description: "Manage and segment your customer base" },
   agents: { title: "AI Agents", description: "Configure and deploy autonomous AI agents" },
+  integration: { title: "Integration", description: "Embed your AI agent into your website" },
   settings: { title: "Settings", description: "Account, integrations, and security preferences" },
 };
 
@@ -476,6 +479,7 @@ export default function DashboardPage() {
                 {activeView === "conversations" && <ConversationsTab />}
                 {activeView === "customers" && <CustomersTab />}
                 {activeView === "agents" && <AgentsTab />}
+                {activeView === "integration" && <IntegrationTab />}
                 {activeView === "settings" && <SettingsTab />}
               </motion.div>
             )}

@@ -4,10 +4,11 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import {
   Activity, Users, DollarSign, Database, ShieldAlert, Loader2,
-  LogOut, Globe, Trash2, CheckCircle2, Clock, AlertTriangle
+  LogOut, Globe, Trash2, CheckCircle2, Clock, AlertTriangle, X, Building2, Mail, Zap
 } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { collection, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ interface AdminUser {
   company?: string;
   apiKey?: string;
   createdAt?: any;
+  status?: string;
 }
 
 interface AdminConversation {
@@ -30,6 +32,15 @@ interface AdminConversation {
   messages?: any[];
 }
 
+interface SalesLead {
+  id: string;
+  name: string;
+  email: string;
+  companyName: string;
+  supportVolume: string;
+  contacted?: boolean;
+}
+
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -38,6 +49,9 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [conversations, setConversations] = useState<AdminConversation[]>([]);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokeModalOpen, setRevokeModalOpen] = useState(false);
+  const [userToRevoke, setUserToRevoke] = useState<string | null>(null);
+  const [salesLeads, setSalesLeads] = useState<SalesLead[]>([]);
   const [globalStats, setGlobalStats] = useState({
     totalUsers: 0,
     totalRevenue: 0,
@@ -63,19 +77,22 @@ export default function AdminDashboard() {
 
     const fetchGlobalData = async () => {
       try {
-        const [usersSnap, convosSnap] = await Promise.all([
+        const [usersSnap, convosSnap, leadsSnap] = await Promise.all([
           getDocs(collection(db, "users")),
           getDocs(collection(db, "conversations")),
+          getDocs(collection(db, "sales_leads")),
         ]);
 
         const usersData: AdminUser[] = usersSnap.docs.map(d => ({ id: d.id, ...d.data() as Omit<AdminUser, "id"> }));
         const convosData: AdminConversation[] = convosSnap.docs.map(d => ({ id: d.id, ...d.data() as Omit<AdminConversation, "id"> }));
+        const leadsData: SalesLead[] = leadsSnap.docs.map(d => ({ id: d.id, ...d.data() as Omit<SalesLead, "id"> }));
 
         // Count unique userIds with ≥1 conversation as "active workspaces"
         const activeWorkspaceIds = new Set(convosData.map(c => c.userId)).size;
 
         setUsers(usersData);
         setConversations(convosData);
+        setSalesLeads(leadsData);
         setGlobalStats({
           totalUsers: usersData.length,
           totalRevenue: usersData.length * 199, // Simulated at $199/user
@@ -93,19 +110,64 @@ export default function AdminDashboard() {
     fetchGlobalData();
   }, [user]);
 
-  const handleRevokeAccess = async (userId: string) => {
-    if (!confirm(`Permanently revoke access for user ${userId}? This is irreversible.`)) return;
-    setRevokingId(userId);
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.replace("/");
+  };
+
+  const handleRevokeAccess = (userId: string) => {
+    setUserToRevoke(userId);
+    setRevokeModalOpen(true);
+  };
+
+  const confirmRevoke = async () => {
+    if (!userToRevoke) return;
+    setRevokingId(userToRevoke);
     try {
-      await deleteDoc(doc(db, "users", userId));
-      setUsers(prev => prev.filter(u => u.id !== userId));
-      setGlobalStats(prev => ({ ...prev, totalUsers: prev.totalUsers - 1, totalRevenue: Math.max(0, prev.totalRevenue - 199) }));
-      toast.success("Access revoked", { description: `User ${userId.slice(0, 8)}... has been removed from the platform.` });
+      await updateDoc(doc(db, "users", userToRevoke), { status: "suspended" });
+      setUsers(prev => prev.map(u => u.id === userToRevoke ? { ...u, status: "suspended" } : u));
+      toast.success("Account Suspended", { description: `User ${userToRevoke.slice(0, 8)}... has been suspended.` });
+      setRevokeModalOpen(false);
+      setUserToRevoke(null);
     } catch (err: any) {
-      toast.error("Revoke failed", { description: err.message });
+      toast.error("Suspend failed", { description: err.message });
     } finally {
       setRevokingId(null);
     }
+  };
+
+  const handleRestoreAccess = async (userId: string) => {
+    try {
+      await updateDoc(doc(db, "users", userId), { status: "active" });
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: "active" } : u));
+      toast.success("Access Restored", { description: "The account has been reactivated." });
+    } catch (err: any) {
+      toast.error("Restore failed", { description: err.message });
+    }
+  };
+
+  const handleMarkContacted = async (leadId: string) => {
+    try {
+      await updateDoc(doc(db, "sales_leads", leadId), { contacted: true });
+      setSalesLeads(prev => prev.map(l => l.id === leadId ? { ...l, contacted: true } : l));
+      toast.success("Lead updated", { description: "Marked as contacted." });
+    } catch (err: any) {
+      toast.error("Failed to update lead", { description: err.message });
+    }
+  };
+
+  const simulateInvoice = async () => {
+    toast.loading("Generating Stripe invoice...");
+    await new Promise(r => setTimeout(r, 1000));
+    toast.dismiss();
+    toast.success("Invoice generated and emailed to lead.", { icon: "💳" });
+  };
+
+  const simulateActivation = async () => {
+    toast.loading("Provisioning Enterprise Workspace...");
+    await new Promise(r => setTimeout(r, 1000));
+    toast.dismiss();
+    toast.success("Workspace activated.", { icon: "🚀" });
   };
 
   if (authLoading || loading) {
@@ -182,9 +244,9 @@ export default function AdminDashboard() {
             <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-[11px] font-semibold text-amber-300">Founder Access — {user.email}</span>
           </div>
-          <Link href="/dashboard" className="text-xs font-medium text-red-400/70 hover:text-red-300 flex items-center gap-1.5 transition-colors">
+          <button onClick={handleLogout} className="text-xs font-medium text-red-400/70 hover:text-red-300 flex items-center gap-1.5 transition-colors">
             <LogOut size={13} /> Exit
-          </Link>
+          </button>
         </div>
       </nav>
 
@@ -272,19 +334,117 @@ export default function AdminDashboard() {
                           <td className="px-6 py-4">
                             <span className="text-[12px] font-mono text-amber-400">{userConvoCount}</span>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={() => handleRevokeAccess(u.id)}
-                              disabled={revokingId === u.id}
-                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
-                            >
-                              {revokingId === u.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
-                              Revoke Access
-                            </button>
+                          <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                            {u.status === "suspended" ? (
+                              <button
+                                onClick={() => handleRestoreAccess(u.id)}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-3 py-1.5 rounded-lg transition-all"
+                              >
+                                <CheckCircle2 size={11} />
+                                Restore Access
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleRevokeAccess(u.id)}
+                                disabled={revokingId === u.id}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                              >
+                                {revokingId === u.id ? <Loader2 size={11} className="animate-spin" /> : <ShieldAlert size={11} />}
+                                Suspend Account
+                              </button>
+                            )}
                           </td>
                         </motion.tr>
                       );
                     })
+                  )}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+
+        {/* Enterprise Sales Leads */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="bg-[#0d0505]/80 border border-red-900/20 rounded-2xl overflow-hidden shadow-2xl"
+        >
+          <div className="px-6 py-5 border-b border-red-900/20 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Building2 size={15} className="text-red-500" />
+              <h3 className="text-sm font-semibold text-red-100">Enterprise Sales Leads</h3>
+              <span className="text-[10px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">{salesLeads.length} leads</span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-black/20 border-b border-red-900/20 text-[10px] uppercase tracking-widest text-red-400/50">
+                  <th className="px-6 py-4 font-semibold">Lead ID</th>
+                  <th className="px-6 py-4 font-semibold">Name / Email</th>
+                  <th className="px-6 py-4 font-semibold">Company</th>
+                  <th className="px-6 py-4 font-semibold">Volume</th>
+                  <th className="px-6 py-4 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="text-[13px] divide-y divide-red-900/10">
+                <AnimatePresence>
+                  {salesLeads.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-red-500/40 text-sm">
+                        No sales leads available.
+                      </td>
+                    </tr>
+                  ) : (
+                    salesLeads.map((l, i) => (
+                      <motion.tr
+                        key={l.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        transition={{ delay: i * 0.04 }}
+                        className={`hover:bg-red-900/10 transition-colors group ${l.contacted ? "opacity-50" : ""}`}
+                      >
+                        <td className="px-6 py-4 font-mono text-[11px] text-red-200/40">{l.id.slice(0, 10)}...</td>
+                        <td className="px-6 py-4">
+                          <p className="text-red-100 font-medium">{l.name}</p>
+                          <p className="text-[11px] text-red-400/60 flex items-center gap-1"><Mail size={10} /> {l.email}</p>
+                        </td>
+                        <td className="px-6 py-4 text-red-200/60 font-medium">{l.companyName}</td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/20">
+                            {l.supportVolume}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                          <button
+                            onClick={simulateInvoice}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-3 py-1.5 rounded-lg transition-all"
+                          >
+                            <DollarSign size={11} />
+                            Send Stripe Invoice
+                          </button>
+                          <button
+                            onClick={simulateActivation}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 px-3 py-1.5 rounded-lg transition-all"
+                          >
+                            <Zap size={11} />
+                            Activate Workspace
+                          </button>
+                          <button
+                            onClick={() => handleMarkContacted(l.id)}
+                            disabled={l.contacted}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 disabled:bg-transparent disabled:border-red-900/20 disabled:hover:text-red-400"
+                          >
+                            {l.contacted ? <CheckCircle2 size={11} className="text-emerald-500" /> : <Clock size={11} />}
+                            {l.contacted ? "Contacted" : "Mark Contacted"}
+                          </button>
+                        </td>
+                      </motion.tr>
+                    ))
                   )}
                 </AnimatePresence>
               </tbody>
@@ -332,6 +492,58 @@ export default function AdminDashboard() {
         </motion.div>
 
       </div>
+
+      {/* Destructive Revoke Modal */}
+      <AnimatePresence>
+        {revokeModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => !revokingId && setRevokeModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-[#0a0202] border border-red-900/40 rounded-2xl shadow-2xl p-6 overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-red-600" />
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="text-red-500" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Suspend User Access?</h3>
+                  <p className="text-[12px] text-red-400/60 font-mono mt-0.5">ID: {userToRevoke}</p>
+                </div>
+              </div>
+              <p className="text-sm text-red-100/70 mb-6 leading-relaxed">
+                This action will instantly suspend this tenant's platform access. Their data will not be deleted, but they will be unable to log in until access is restored.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setRevokeModalOpen(false)}
+                  disabled={!!revokingId}
+                  className="px-4 py-2 rounded-xl text-[13px] font-semibold text-neutral-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmRevoke}
+                  disabled={!!revokingId}
+                  className="bg-red-600 text-white px-5 py-2 rounded-xl text-[13px] font-semibold hover:bg-red-500 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {revokingId ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
+                  Confirm Suspend
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

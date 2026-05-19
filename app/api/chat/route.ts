@@ -24,8 +24,13 @@ async function fetchUserSystemPrompt(userId: string): Promise<string> {
   try {
     const db = getServerFirestore();
     const snap = await getDoc(doc(db, "users", userId));
-    if (snap.exists() && snap.data().systemPrompt) {
-      return snap.data().systemPrompt as string;
+    if (snap.exists()) {
+      const data = snap.data();
+      let prompt = data.systemPrompt || DEFAULT_SYSTEM_PROMPT;
+      if (data.knowledgeBase) {
+        prompt += `\n\n=== KNOWLEDGE BASE (V1 RAG) ===\nUse the following context to answer customer queries accurately. If the context does not contain the answer, politely decline to answer.\n${data.knowledgeBase}\n================================`;
+      }
+      return prompt;
     }
   } catch (err) {
     console.warn("[Chat API] Could not fetch user system prompt:", err);

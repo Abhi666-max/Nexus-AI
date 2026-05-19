@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Search, Bot, User, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, Bot, User, Clock, CheckCircle2, AlertCircle, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { useAuth } from "@/lib/AuthContext";
@@ -106,7 +106,12 @@ export default function ConversationsTab() {
           {loading ? (
             <div className="p-4 text-center text-neutral-500 text-[12px]">Loading conversations...</div>
           ) : filtered.length === 0 ? (
-            <div className="p-4 text-center text-neutral-500 text-[12px]">No conversations found.</div>
+            <div className="p-4 text-center text-neutral-500 text-[12px] py-10">
+              <div className="flex justify-center mb-2">
+                <Search size={20} className="text-neutral-600" />
+              </div>
+              No conversations found.
+            </div>
           ) : (
             filtered.map(c => (
               <button
@@ -132,7 +137,17 @@ export default function ConversationsTab() {
 
       {/* Right Transcript Viewer */}
       <div className="flex-1 flex flex-col border border-white/8 bg-[#0d0d0d] rounded-2xl overflow-hidden relative">
-        {activeConv ? (
+        {(!loading && conversations.length === 0) ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-white/10 shadow-xl shadow-black/50">
+              <MessageSquare size={24} className="text-neutral-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white tracking-tight mb-2">Waiting for your first customer...</h3>
+            <p className="text-[14px] text-neutral-500 max-w-[320px] leading-relaxed">
+              Your AI agent is active. Once a customer starts a chat on your website, it will appear here in real-time.
+            </p>
+          </div>
+        ) : activeConv ? (
           <>
             {/* Header */}
             <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between shrink-0 bg-[#0d0d0d]/80 backdrop-blur-md absolute top-0 left-0 right-0 z-10">

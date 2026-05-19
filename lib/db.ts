@@ -200,6 +200,13 @@ export const saveSystemPrompt = async (userId: string, systemPrompt: string) => 
   }, { merge: true });
 };
 
+export const saveAgentSettings = async (userId: string, settings: { systemPrompt?: string; botName?: string; themeColor?: string; knowledgeBase?: string }) => {
+  await setDoc(doc(db, "users", userId), {
+    ...settings,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+};
+
 export const getSystemPrompt = async (userId: string): Promise<string | null> => {
   const d = await getDoc(doc(db, "users", userId));
   return d.exists() ? (d.data().systemPrompt || null) : null;

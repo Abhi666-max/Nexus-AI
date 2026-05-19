@@ -21,16 +21,20 @@ export default function AdminLogin() {
   const [error, setError] = useState("");
   const [attempts, setAttempts] = useState(0);
 
-  // Route Guard: bounce any already-logged-in user away from this page
+  // Route Guard: bounce any already-logged-in admin to the dashboard, but clear ghost sessions for regular users
   useEffect(() => {
-    if (!authLoading && user) {
-      if (user.email === ADMIN_EMAIL) {
-        router.replace("/admin/dashboard");
-      } else {
-        // Regular user stumbled onto admin login — boot them out
-        router.replace("/dashboard");
+    const manageSession = async () => {
+      if (!authLoading && user) {
+        if (user.email === ADMIN_EMAIL) {
+          router.replace("/admin/dashboard");
+        } else {
+          // Regular user stumbled onto admin login — explicitly clear their session
+          // This prevents them from being stuck in a ghost state.
+          await signOut(auth);
+        }
       }
-    }
+    };
+    manageSession();
   }, [user, authLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
